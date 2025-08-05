@@ -2,7 +2,7 @@
 
 Ein browserbasiertes Tool zur Verwaltung Ihres 3D-Druck-Filamentbestands. Verfolgen Sie Spulen mit detaillierten Daten, organisieren Sie sie in einem hierarchischen Lagersystem und nutzen Sie Ihre Kamera zum Scannen von QR-Codes für schnellen Zugriff. Inklusive druckbarer Etiketten für Spulen und Lagerplätze.
 
-![App Screenshot](https://user-images.githubusercontent.com/12345/placeholder.jpg) 
+![App Screenshot](https://github.com/remstalbasti/FMT-Filament-Managment-Tool/blob/main/FMT001.png) 
 *(Platzhalter für einen Screenshot der Hauptansicht)*
 
 ---
