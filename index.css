@@ -149,7 +149,7 @@ legend { padding: 0 0.5rem; font-size: 1.25rem; font-weight: 600; color: var(--p
 label { font-weight: 500; color: var(--text-secondary); font-size: 0.9rem; }
 input, select, textarea { width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background-color: var(--tertiary-bg); color: var(--text-primary); font-size: 1rem; font-family: 'Inter', sans-serif; }
 input[readonly] { background-color: var(--primary-bg); cursor: not-allowed; }
-input[type="number"] { -moz-appearance: textfield; }
+input[type="number"] { -moz-appearance: textfield; appearance: none; }
 input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 textarea { resize: vertical; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary-accent); box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); }
@@ -400,7 +400,8 @@ a:hover { text-decoration: underline; }
     .form-row, .form-row-3, .form-row-4 { grid-template-columns: 1fr; }
     /* Moved from 480px for better mobile responsiveness */
     .form-actions, .card-footer, .print-actions { flex-direction: column; }
-    .form-actions .button, .card-footer .button, .print-actions .button { width: 100%; }
+    .form-actions .button, .card-footer .button, .print-actions .button, 
+    .form-actions a.button, .card-footer a.button, .print-actions a.button { width: 100%; }
 }
 
 @media (max-width: 480px) {
