@@ -398,13 +398,21 @@ a:hover { text-decoration: underline; }
     .header-actions { width: 100%; justify-content: flex-start; }
     .form-container, .filament-datasheet { padding: 1.5rem; }
     .form-row, .form-row-3, .form-row-4 { grid-template-columns: 1fr; }
+    /* Moved from 480px for better mobile responsiveness */
+    .form-actions, .card-footer, .print-actions { flex-direction: column; }
+    .form-actions .button, .card-footer .button, .print-actions .button { width: 100%; }
 }
 
 @media (max-width: 480px) {
     h1 { font-size: 2rem; }
     h1 .header-subtitle { display: none; }
     .header-actions { flex-direction: column; align-items: stretch; }
-    .form-actions, .card-footer, .print-actions { flex-direction: column; }
-    .form-actions .button, .card-footer .button, .print-actions .button { width: 100%; }
     .initial-actions { flex-direction: column; }
+    .form-actions, .card-footer, .print-actions {
+        flex-direction: column;
+    }
+    .form-actions .button, .card-footer .button, .print-actions .button,
+    .form-actions a.button, .card-footer a.button, .print-actions a.button {
+         width: 100%;
+    }
 }

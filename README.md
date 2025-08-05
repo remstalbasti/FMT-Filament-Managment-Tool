@@ -26,7 +26,7 @@ Dieses Tool wurde entwickelt, um eine häufige Herausforderung für 3D-Druck-Ent
 -   **Tabellenkalkulation** Sie können ohne Tabellenkalkulation nicht arbeiten? Einfach die .json in einem online konverter in das gewüschte Format wandeln.
 
 ## Geplante Funktionen
-- 
+- Irgendwas mit KI
 
 ---
 
