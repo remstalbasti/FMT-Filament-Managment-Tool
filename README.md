@@ -38,6 +38,20 @@ Diese Anwendung basiert auf React und TypeScript und erfordert Node.js für die 
 -   [Node.js](https://nodejs.org/en/) (Version 18.x oder neuer empfohlen)
 -   npm (wird mit Node.js installiert)
 
+### 1. Abhängigkeiten installieren
+
+Nachdem Sie die Daten in einem lokalen Ordner entpackt haben haben, öffnen Sie ein Terminal im Projektordner und führen Sie diesen Befehl aus. Er lädt alle notwendigen Bibliotheken (React, Vite etc.) herunter.
+
+```bash
+npm install
+```
+
+### 2. Entwicklungsserver starten
+
+Dieser Befehl startet einen lokalen Server (meist auf `http://localhost:3000`), öffnet die App in Ihrem Browser und aktualisiert sie automatisch, wenn Sie Änderungen am Code vornehmen.
+
+```bash
+npm run dev
 
 ## Aktueller Entwicklungsstand & Bekannte Probleme
 
