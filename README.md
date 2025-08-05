@@ -52,7 +52,7 @@ Dieser Befehl startet einen lokalen Server (meist auf `http://localhost:3000`), 
 
 ```bash
 npm run dev
-
+```
 ## Aktueller Entwicklungsstand & Bekannte Probleme
 
 -   **Scanner-Navigation:** Die QR-Code-Erkennung kann je nach Gerät, Browser und Lichtverhältnissen variieren.
@@ -61,3 +61,8 @@ npm run dev
 ## Lizenz
 
 Dieses Projekt ist unter der MIT-Lizenz lizenziert.
+
+## Und sonst noch
+
+Wenn Ihnen das Projekt gefällt watch or star me please
+Thank you
