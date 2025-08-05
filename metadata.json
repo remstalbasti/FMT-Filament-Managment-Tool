@@ -1,0 +1,8 @@
+{
+  "name": "Filament Management",
+  "description": "An app to manage 3D printing filaments, with barcode scanning and an AI-powered info system.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "prompt": ""
+}
