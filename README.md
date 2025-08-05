@@ -2,7 +2,7 @@
 
 Ein browserbasiertes Tool zur Verwaltung Ihres 3D-Druck-Filamentbestands. Verfolgen Sie Spulen mit detaillierten Daten, organisieren Sie sie in einem hierarchischen Lagersystem und nutzen Sie Ihre Kamera zum Scannen von QR-Codes für schnellen Zugriff. Inklusive druckbarer Etiketten für Spulen und Lagerplätze.
 
-![App Screenshot](https://user-images.githubusercontent.com/12345/placeholder.jpg) 
+![App Screenshot](https://github.com/remstalbasti/FMT-Filament-Managment-Tool/blob/main/FMT001.png) 
 *(Platzhalter für einen Screenshot der Hauptansicht)*
 
 ---
@@ -23,6 +23,10 @@ Dieses Tool wurde entwickelt, um eine häufige Herausforderung für 3D-Druck-Ent
 -   **Etikettendruck:** Drucken Sie professionell aussehende Etiketten für Ihre Spulen und Lagerbehälter direkt aus der App. Die Etiketten sind für Standard-Etikettendrucker (z.B. 70x37mm) optimiert, können aber auch auf normalem Papier gedruckt werden.
 -   **Import / Export:** Sichern Sie Ihre gesamte Datenbank in einer einzigen `JSON`-Datei. Ideal für Backups oder die Übertragung auf ein anderes Gerät.
 -   **Intelligente Berechnungen:** Die App berechnet automatisch die verbleibende Filamentlänge basierend auf dem aktuellen Gewicht und dem Materialtyp (Dichte).
+-   **Tabellenkalkulation** Sie können ohne Tabellenkalkulation nicht arbeiten? Einfach die .json in einem online konverter in das gewüschte Format wandeln.
+
+## Geplante Funktionen
+- 
 
 ---
 

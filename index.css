@@ -404,7 +404,7 @@ a:hover { text-decoration: underline; }
     h1 { font-size: 2rem; }
     h1 .header-subtitle { display: none; }
     .header-actions { flex-direction: column; align-items: stretch; }
-    .form-actions, .card-footer { flex-direction: column; }
-    .form-actions .button, .card-footer .button { width: 100%; }
+    .form-actions, .card-footer, .print-actions { flex-direction: column; }
+    .form-actions .button, .card-footer .button, .print-actions .button { width: 100%; }
     .initial-actions { flex-direction: column; }
 }
