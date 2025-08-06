@@ -64,5 +64,5 @@ Dieses Projekt ist unter der MIT-Lizenz lizenziert.
 
 ## Und sonst noch
 
-Wenn Ihnen das Projekt gefällt watch or star me please
+Wenn Dir das Projekt gefällt, watch or star me please
 Thank you
