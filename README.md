@@ -28,6 +28,13 @@ Dieses Tool wurde entwickelt, um eine häufige Herausforderung für 3D-Druck-Ent
 ## Geplante Funktionen
 - Irgendwas mit KI
 
+## Sonstiges
+Mit der Druckvorlage kann eine Auflage für eine einfache digitale Waage gedruck werden.
+![App Screenshot](https://github.com/remstalbasti/FMT-Filament-Managment-Tool/blob/main/FMT001.png) 
+*(Platzhalter für einen Screenshot der Hauptansicht)*
+Damit wird das erfassen des Gewichts und verbleiben Fialments zum Kinderspiel.
+
+
 ---
 
 ## Entwicklungsumgebung einrichten
