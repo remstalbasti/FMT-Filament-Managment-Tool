@@ -11,6 +11,7 @@ interface Printer {
     name: string;
     manufacturer: string;
     nozzle: string;
+    filamentDiameter: number;
 }
 
 interface Filament {
@@ -159,10 +160,17 @@ const migrateData = (data: any): {filaments: Filament[], storageTree: StorageNod
     const rawFilaments = data.filaments || [];
     const storageTree = data.storageTree || [];
     let idCounters = data.idCounters || {};
-    const printers = data.printers || [];
+    let printers = data.printers || [];
     const dataVersion = data?.idCounters?.version || 1;
 
-    // --- Legacy Migration (location, spoolLength etc.)
+    // --- Printer Migration ---
+    printers = printers.map((p: any) => ({
+        ...p,
+        id: p.id || crypto.randomUUID(),
+        filamentDiameter: p.filamentDiameter ?? 1.75,
+    }));
+
+    // --- Legacy Filament Migration (location, spoolLength etc.)
     const needsLegacyMigration = rawFilaments.length > 0 && rawFilaments.some((f: any) => f.locationPath === undefined || f.spoolLength === undefined);
     let legacyMigratedFilaments = rawFilaments;
     if (needsLegacyMigration) {
@@ -493,11 +501,16 @@ const RemainingFilamentVisualizer: React.FC<{ percentage: number; color: string;
     );
 };
 
-const FilamentMatrixCard: React.FC<{ filament: Filament; onClick: () => void; onUpdateWeight: (id: string, weight: number) => void; }> = ({ filament, onClick, onUpdateWeight }) => {
+const FilamentMatrixCard: React.FC<{ filament: Filament; printers: Printer[]; onClick: () => void; onUpdateWeight: (id: string, weight: number) => void; }> = ({ filament, printers, onClick, onUpdateWeight }) => {
     const filamentWeight = filament.totalWeight - filament.spoolWeight;
     const percentage = filament.spoolSize > 0 ? Math.max(0, Math.min(100, (filamentWeight / filament.spoolSize) * 100)) : 0;
     const [quickWeight, setQuickWeight] = useState(filament.totalWeight.toString());
     const inputRef = useRef<HTMLInputElement>(null);
+
+    const assignedPrinterName = useMemo(() => {
+        if (filament.status !== 'Auf Drucker' || !filament.assignedPrinterId) return null;
+        return printers.find(p => p.id === filament.assignedPrinterId)?.name || 'Unbekannter Drucker';
+    }, [filament, printers]);
 
     useEffect(() => {
         setQuickWeight(filament.totalWeight.toString());
@@ -509,7 +522,6 @@ const FilamentMatrixCard: React.FC<{ filament: Filament; onClick: () => void; on
         const weightValue = parseFloat(quickWeight);
         if (!isNaN(weightValue) && weightValue >= filament.spoolWeight) {
             onUpdateWeight(filament.id, weightValue);
-            if (inputRef.current) inputRef.current.blur();
         } else {
             alert(`Ungültiges Gewicht. Muss eine Zahl sein und größer als das Spulengewicht (${filament.spoolWeight}g).`);
             setQuickWeight(filament.totalWeight.toString());
@@ -528,7 +540,14 @@ const FilamentMatrixCard: React.FC<{ filament: Filament; onClick: () => void; on
                 </div>
                 <div className="matrix-card-info">
                     <span className="matrix-card-color">{filament.manufacturerColor || filament.color}</span>
-                    <span className="matrix-card-location">{filament.locationPath || 'Nicht eingelagert'}</span>
+                     {filament.status === 'Auf Drucker' && assignedPrinterName ? (
+                        <span className="matrix-card-status on-printer" title={`Auf Drucker: ${assignedPrinterName}`}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                            {assignedPrinterName}
+                        </span>
+                    ) : (
+                        <span className="matrix-card-location">{filament.locationPath || 'Nicht eingelagert'}</span>
+                    )}
                 </div>
             </div>
             <form className="matrix-card-quick-edit" onSubmit={handleQuickWeightSubmit}>
@@ -556,10 +575,11 @@ const FilamentMatrixCard: React.FC<{ filament: Filament; onClick: () => void; on
 
 const FilamentMatrixView: React.FC<{
     filaments: Filament[];
+    printers: Printer[];
     totalCount: number;
     onViewDetail: (id: string) => void;
     onUpdateWeight: (id: string, weight: number) => void;
-}> = ({ filaments, totalCount, onViewDetail, onUpdateWeight }) => {
+}> = ({ filaments, printers, totalCount, onViewDetail, onUpdateWeight }) => {
     if (totalCount === 0) {
         return <div className="empty-state"><h3>Keine Spulen gefunden</h3><p>Fügen Sie Ihre erste Spule hinzu, um zu beginnen.</p></div>;
     }
@@ -570,7 +590,7 @@ const FilamentMatrixView: React.FC<{
         <div className="matrix-view">
             <div className="matrix-header"><p>Angezeigte Spulen: {filaments.length} / {totalCount}</p></div>
             <div className="matrix-grid">
-                {filaments.map(filament => <FilamentMatrixCard key={filament.id} filament={filament} onClick={() => onViewDetail(filament.id)} onUpdateWeight={onUpdateWeight} />)}
+                {filaments.map(filament => <FilamentMatrixCard key={filament.id} filament={filament} printers={printers} onClick={() => onViewDetail(filament.id)} onUpdateWeight={onUpdateWeight} />)}
             </div>
         </div>
     );
@@ -990,7 +1010,8 @@ const PrinterManager: React.FC<{ initialPrinters: Printer[], onSave: (printers: 
             id: crypto.randomUUID(),
             name: 'Neuer Drucker',
             manufacturer: '',
-            nozzle: '0.4mm'
+            nozzle: '0.4mm',
+            filamentDiameter: 1.75
         };
         setPrinters(prev => [...prev, newPrinter]);
     };
@@ -1001,7 +1022,13 @@ const PrinterManager: React.FC<{ initialPrinters: Printer[], onSave: (printers: 
     };
     
     const handleUpdate = (id: string, field: keyof Omit<Printer, 'id'>, value: string) => {
-         setPrinters(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+         setPrinters(prev => prev.map(p => {
+            if (p.id === id) {
+                const updatedValue = field === 'filamentDiameter' ? parseFloat(value) || 0 : value;
+                return { ...p, [field]: updatedValue };
+            }
+            return p;
+        }));
     };
 
     return (
@@ -1014,6 +1041,7 @@ const PrinterManager: React.FC<{ initialPrinters: Printer[], onSave: (printers: 
                             <span>Name</span>
                             <span>Hersteller</span>
                             <span>Düse</span>
+                            <span>Filamentdurchmesser (mm)</span>
                             <span>Aktionen</span>
                         </div>
                     ) : (
@@ -1024,6 +1052,7 @@ const PrinterManager: React.FC<{ initialPrinters: Printer[], onSave: (printers: 
                             <input type="text" value={printer.name} onChange={e => handleUpdate(printer.id, 'name', e.target.value)} placeholder="z.B. Ender 3 V2" />
                             <input type="text" value={printer.manufacturer} onChange={e => handleUpdate(printer.id, 'manufacturer', e.target.value)} placeholder="z.B. Creality" />
                             <input type="text" value={printer.nozzle} onChange={e => handleUpdate(printer.id, 'nozzle', e.target.value)} placeholder="z.B. 0.4mm Brass" />
+                            <input type="number" step="0.01" value={printer.filamentDiameter} onChange={e => handleUpdate(printer.id, 'filamentDiameter', e.target.value)} placeholder="z.B. 1.75" />
                             <div className="item-actions">
                                 <button onClick={() => handleDelete(printer.id)} title="Löschen" className="button button-icon button-small button-danger">🗑</button>
                             </div>
@@ -1071,7 +1100,7 @@ const UserGuide: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             <li><strong>Gewicht schnell ändern:</strong> Nutzen Sie das Eingabefeld unten auf jeder Spulenkarte, um das Gesamtgewicht schnell nach dem Wiegen zu aktualisieren.</li>
                             <li><strong>Datenblatt:</strong> Klicken Sie auf eine Spulen-Karte, um die Detailansicht zu öffnen. Hier sehen Sie alle erfassten Daten.</li>
                             <li><strong>Bearbeiten, Kopieren, Löschen:</strong> In der Detailansicht können Sie eine Spule bearbeiten, sie als Vorlage für eine neue Spule kopieren oder endgültig löschen.</li>
-                            <li><strong>Status "Auf Drucker":</strong> Weisen Sie eine Spule einem Drucker zu, um den Überblick zu behalten, was gerade geladen ist.</li>
+                            <li><strong>Status "Auf Drucker":</strong> Weisen Sie eine Spule einem Drucker zu, um den Überblick zu behalten, was gerade geladen ist. Der Status wird direkt auf der Spulenkarte angezeigt.</li>
                         </ul>
                     </section>
                     <section>
@@ -1135,17 +1164,6 @@ const ColorCodeListView: React.FC<{ colors: ColorCodeInfo[], onClose: () => void
                     <button onClick={() => window.print()} className="button" disabled={colors.length === 0}>Drucken</button>
                 </div>
             </div>
-        </div>
-    );
-};
-
-const ActivePrintersIndicator: React.FC<{ activeFilamentsCount: number }> = ({ activeFilamentsCount }) => {
-    if (activeFilamentsCount === 0) return null;
-
-    return (
-        <div className="active-printer-indicator" title={`${activeFilamentsCount} Drucker in Benutzung`}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-            <span className="count-badge">{activeFilamentsCount}</span>
         </div>
     );
 };
@@ -1477,7 +1495,6 @@ const App: React.FC = () => {
     }, [filaments, locationFilter, typeFilter, colorFilter]);
 
     const currentFilamentForView = useMemo(() => (mode === 'detail') ? filaments.find(f => f.id === currentFilamentId) || null : null, [filaments, mode, currentFilamentId]);
-    const activeFilamentsCount = useMemo(() => filaments.filter(f => f.status === 'Auf Drucker').length, [filaments]);
 
     const handleReset = () => {
         if(window.confirm("Möchten Sie die App wirklich zurücksetzen? Alle nicht gespeicherten Daten gehen verloren.")) {
@@ -1516,7 +1533,6 @@ const App: React.FC = () => {
                 <header>
                     <h1>FMT <span className="header-subtitle">Filament Management Tool</span></h1>
                     <div className="header-actions">
-                        <ActivePrintersIndicator activeFilamentsCount={activeFilamentsCount} />
                         <button className="button button-icon" onClick={() => setShowColorCodeList(true)} title="Farb-Code-Liste anzeigen">
                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.34 0 .67-.02 1-.05M7.32 18.7c.84-.58 1.58-1.25 2.2-2M15 2.46A8.92 8.92 0 0 1 21.54 9c.74 2.5.21 5.25-1.54 7.25-.87 1-1.87 1.8-3 2.45M18.7 7.32c-.58-.84-1.25-1.58-2-2.2M9 21.54A8.92 8.92 0 0 1 2.46 15c-2.5-.74-5.25-.21-7.25 1.54-1 .87-1.8 1.87-2.45 3"/></svg>
                         </button>
@@ -1560,7 +1576,7 @@ const App: React.FC = () => {
                                         Zurücksetzen
                                     </button>
                                 </div>
-                                <FilamentMatrixView filaments={filteredFilaments} totalCount={filaments.length} onViewDetail={handleViewDetail} onUpdateWeight={handleUpdateWeight} />
+                                <FilamentMatrixView filaments={filteredFilaments} printers={printers} totalCount={filaments.length} onViewDetail={handleViewDetail} onUpdateWeight={handleUpdateWeight} />
                             </>
                         )}
                          {mode === 'detail' && currentFilamentForView && <FilamentDetailView filament={currentFilamentForView} printers={printers} onDelete={deleteFilament} onEdit={handleStartEdit} onCopy={handleCopy} onPrint={handlePrintFilament} onSelectLocation={handleSelectLocation} />}

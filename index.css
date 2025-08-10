@@ -135,25 +135,26 @@ a.button.disabled { opacity: 0.5; cursor: not-allowed; background-color: var(--t
 
 .printer-manager-list .printer-list-header {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 80px;
+    grid-template-columns: 1fr 1fr 1fr 1fr 80px;
     gap: 1rem;
     padding: 0 0.75rem 0.5rem;
     font-weight: 600;
     color: var(--text-secondary);
     border-bottom: 1px solid var(--border-color);
 }
-.printer-manager-item { display: grid; grid-template-columns: 1fr 1fr 1fr 80px; gap: 1rem; align-items: center; padding: 0.5rem 0; }
+.printer-manager-item {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 80px;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.5rem 0;
+}
 .printer-manager-item input { padding: 0.5rem; }
 .printer-manager-item .item-actions { display: flex; justify-content: center; }
 
-.button.has-unsaved-changes, .active-printer-indicator { position: relative; }
-.button.has-unsaved-changes::after, .active-printer-indicator::after { content: ''; position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background-color: var(--success); border: 2px solid var(--secondary-bg); animation: pulse 1.5s infinite; }
-.active-printer-indicator { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background-color: var(--tertiary-bg); border-radius: 8px; color: var(--text-secondary); cursor: help; }
-.active-printer-indicator svg { color: var(--text-primary); }
-.active-printer-indicator::after { background-color: var(--primary-accent); animation: pulse-blue 1.5s infinite; }
-.count-badge { position: absolute; top: -5px; right: -5px; background: var(--error); color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 0.75rem; font-weight: bold; display: flex; align-items: center; justify-content: center; line-height: 1; }
+.button.has-unsaved-changes { position: relative; }
+.button.has-unsaved-changes::after { content: ''; position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background-color: var(--success); border: 2px solid var(--secondary-bg); animation: pulse 1.5s infinite; }
 @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); } }
-@keyframes pulse-blue { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 123, 255, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); } }
 
 .form-container { background-color: var(--secondary-bg); padding: 2rem; border-radius: 12px; display: flex; flex-direction: column; gap: 1.5rem; }
 fieldset { border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 8px; display: flex; flex-direction: column; gap: 1rem; }
@@ -216,7 +217,29 @@ input[type="color"]::-moz-color-swatch { border-radius: 6px; border: none; }
 .matrix-card-info { display: flex; flex-direction: column; gap: 0.25rem; overflow: hidden; }
 .matrix-card-type { font-weight: 600; font-size: 1.1rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .matrix-card-color { font-size: 0.9rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.matrix-card-location { font-size: 0.8rem; color: var(--primary-accent); margin-top: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem; }
+
+.matrix-card-location, .matrix-card-status {
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.matrix-card-location {
+    color: var(--primary-accent);
+}
+.matrix-card-status.on-printer {
+    color: var(--success);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.matrix-card-status.on-printer svg {
+    flex-shrink: 0;
+}
 
 /* --- Matrix Card Quick Edit --- */
 .matrix-card-quick-edit {
