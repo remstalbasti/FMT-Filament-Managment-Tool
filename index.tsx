@@ -6,11 +6,18 @@ import namer from 'color-namer';
 import QRCode from 'qrcode';
 
 // --- Interfaces ---
+interface Printer {
+    id: string;
+    name: string;
+    manufacturer: string;
+    nozzle: string;
+}
+
 interface Filament {
   id: string;
 
   // Spule Details
-  status: 'Originalverpackt' | 'Angebrochen';
+  status: 'Originalverpackt' | 'Angebrochen' | 'Auf Drucker';
   manufacturer: string;
   manufacturerColor: string;
   type: string;
@@ -36,6 +43,7 @@ interface Filament {
   extruderTemp: string;      // e.g., "240-260 C"
   heatbedTemp: string;       // e.g., "70-90 C"
   barcode: string;
+  assignedPrinterId?: string; // ID of the printer it's on
 
   // Lager
   locationPath: string; // e.g. "Regal 1/Fach A/Box 3"
@@ -147,10 +155,11 @@ const generateQrCodeSvgPath = (content: string, size: number): string => {
     }
 };
 
-const migrateData = (data: any): {filaments: Filament[], storageTree: StorageNode[], idCounters: any} => {
+const migrateData = (data: any): {filaments: Filament[], storageTree: StorageNode[], idCounters: any, printers: Printer[]} => {
     const rawFilaments = data.filaments || [];
     const storageTree = data.storageTree || [];
     let idCounters = data.idCounters || {};
+    const printers = data.printers || [];
     const dataVersion = data?.idCounters?.version || 1;
 
     // --- Legacy Migration (location, spoolLength etc.)
@@ -215,7 +224,7 @@ const migrateData = (data: any): {filaments: Filament[], storageTree: StorageNod
     
     idCounters.version = 3;
     
-    return { filaments: finalFilaments, storageTree, idCounters };
+    return { filaments: finalFilaments, storageTree, idCounters, printers };
 };
 
 
@@ -271,8 +280,11 @@ const FilamentForm: React.FC<{
     initialData: Partial<Filament> | null;
     isEditing: boolean;
     storageLocations: string[];
-}> = ({ onSave, onCancel, initialData, isEditing, storageLocations }) => {
-    const [status, setStatus] = useState<'Originalverpackt' | 'Angebrochen'>(initialData?.status || 'Originalverpackt');
+    printers: Printer[];
+    filaments: Filament[];
+}> = ({ onSave, onCancel, initialData, isEditing, storageLocations, printers, filaments }) => {
+    const [status, setStatus] = useState<'Originalverpackt' | 'Angebrochen' | 'Auf Drucker'>(initialData?.status || 'Originalverpackt');
+    const [assignedPrinterId, setAssignedPrinterId] = useState(initialData?.assignedPrinterId || '');
     const [manufacturer, setManufacturer] = useState(initialData?.manufacturer || '');
     const [manufacturerColor, setManufacturerColor] = useState(initialData?.manufacturerColor || '');
     const [type, setType] = useState(initialData?.type || '');
@@ -305,6 +317,13 @@ const FilamentForm: React.FC<{
         return Math.max(0, totalW - spoolW);
     }, [totalWeight, spoolWeight]);
 
+    const availablePrinters = useMemo(() => {
+        const usedPrinterIds = filaments
+            .filter(f => f.id !== initialData?.id && f.assignedPrinterId)
+            .map(f => f.assignedPrinterId!);
+        return printers.filter(p => !usedPrinterIds.includes(p.id));
+    }, [filaments, printers, initialData]);
+
     const handleColorTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newColorName = e.target.value;
         setColor(newColorName);
@@ -336,7 +355,8 @@ const FilamentForm: React.FC<{
             spoolSize: parseFloat(spoolSize) || 0,
             spoolLength: parseFloat(spoolLength) || 0,
             techSheetUrl, standardDeviation: parseFloat(standardDeviation) || 0, ovality: parseFloat(ovality) || 0,
-            madeIn, extruderTemp, heatbedTemp, barcode, locationPath, notes
+            madeIn, extruderTemp, heatbedTemp, barcode, locationPath, notes,
+            assignedPrinterId: status === 'Auf Drucker' ? assignedPrinterId : undefined
         };
         
         const saveData: Omit<Filament, 'id'> & { id?: string } = { ...filamentData };
@@ -366,8 +386,25 @@ const FilamentForm: React.FC<{
                     </div>
                      <div className="form-row">
                          <div className="form-group"><label htmlFor="manufacturerColor">Hersteller-Farbe</label><input id="manufacturerColor" type="text" value={manufacturerColor} onChange={e => setManufacturerColor(e.target.value)} placeholder="z.B. Galaxy Black" required /></div>
-                        <div className="form-group"><label htmlFor="status">Status</label><select id="status" value={status} onChange={e => setStatus(e.target.value as any)}><option value="Originalverpackt">Originalverpackt</option><option value="Angebrochen">Angebrochen</option></select></div>
+                        <div className="form-group"><label htmlFor="status">Status</label><select id="status" value={status} onChange={e => setStatus(e.target.value as any)}><option value="Originalverpackt">Originalverpackt</option><option value="Angebrochen">Angebrochen</option><option value="Auf Drucker">Auf Drucker</option></select></div>
                      </div>
+                     {status === 'Auf Drucker' && (
+                        <div className="form-row">
+                             <div className="form-group">
+                                <label htmlFor="assignedPrinter">Drucker</label>
+                                <select id="assignedPrinter" value={assignedPrinterId} onChange={e => setAssignedPrinterId(e.target.value)} required>
+                                    <option value="" disabled>Drucker auswählen...</option>
+                                    {initialData?.assignedPrinterId && !availablePrinters.some(p => p.id === initialData.assignedPrinterId) && 
+                                        (() => {
+                                            const currentPrinter = printers.find(p => p.id === initialData.assignedPrinterId);
+                                            return currentPrinter ? <option key={currentPrinter.id} value={currentPrinter.id}>{currentPrinter.name} (aktuell)</option> : null;
+                                        })()
+                                    }
+                                    {availablePrinters.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                             </div>
+                        </div>
+                     )}
                       <div className="form-row form-row-3">
                         <div className="form-group"><label htmlFor="color">Ähnlichste Farbe & Farbton</label><div className="color-input-group"><input id="color" type="text" value={color} onChange={handleColorTextChange} placeholder="z.B. Black" /><input type="color" value={colorHex} onChange={handleColorHexChange} title="Farbton auswählen" /></div></div>
                         <div className="form-group"><label htmlFor="madeDate">Herstellungsdatum</label><input id="madeDate" type="text" value={madeDate} onChange={e => setMadeDate(e.target.value)} placeholder="z.B. 2.5.2023 17:34" /></div>
@@ -456,23 +493,63 @@ const RemainingFilamentVisualizer: React.FC<{ percentage: number; color: string;
     );
 };
 
-const FilamentMatrixCard: React.FC<{ filament: Filament; onClick: () => void; }> = ({ filament, onClick }) => {
+const FilamentMatrixCard: React.FC<{ filament: Filament; onClick: () => void; onUpdateWeight: (id: string, weight: number) => void; }> = ({ filament, onClick, onUpdateWeight }) => {
     const filamentWeight = filament.totalWeight - filament.spoolWeight;
     const percentage = filament.spoolSize > 0 ? Math.max(0, Math.min(100, (filamentWeight / filament.spoolSize) * 100)) : 0;
+    const [quickWeight, setQuickWeight] = useState(filament.totalWeight.toString());
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        setQuickWeight(filament.totalWeight.toString());
+    }, [filament.totalWeight]);
+
+    const handleQuickWeightSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const weightValue = parseFloat(quickWeight);
+        if (!isNaN(weightValue) && weightValue >= filament.spoolWeight) {
+            onUpdateWeight(filament.id, weightValue);
+            if (inputRef.current) inputRef.current.blur();
+        } else {
+            alert(`Ungültiges Gewicht. Muss eine Zahl sein und größer als das Spulengewicht (${filament.spoolWeight}g).`);
+            setQuickWeight(filament.totalWeight.toString());
+        }
+    };
 
     return (
         <div className="matrix-card" onClick={onClick} style={{ borderLeftColor: filament.colorHex || filament.color }}>
-            <div className="matrix-card-top">
-                <span className="matrix-card-type">{filament.type}</span>
-                <div className="filament-percentage-indicator">
-                    <RemainingFilamentVisualizer percentage={percentage} color={filament.colorHex || filament.color} />
-                    <span>{percentage.toFixed(0)}%</span>
+            <div className="matrix-card-content">
+                <div className="matrix-card-top">
+                    <span className="matrix-card-type">{filament.type}</span>
+                    <div className="filament-percentage-indicator" title={`${filamentWeight.toFixed(1)}g / ${filament.spoolSize}g`}>
+                        <RemainingFilamentVisualizer percentage={percentage} color={filament.colorHex || filament.color} />
+                        <span>{percentage.toFixed(0)}%</span>
+                    </div>
+                </div>
+                <div className="matrix-card-info">
+                    <span className="matrix-card-color">{filament.manufacturerColor || filament.color}</span>
+                    <span className="matrix-card-location">{filament.locationPath || 'Nicht eingelagert'}</span>
                 </div>
             </div>
-            <div className="matrix-card-info">
-                <span className="matrix-card-color">{filament.manufacturerColor || filament.color}</span>
-                <span className="matrix-card-location">{filament.locationPath || 'Nicht eingelagert'}</span>
-            </div>
+            <form className="matrix-card-quick-edit" onSubmit={handleQuickWeightSubmit}>
+                <label htmlFor={`quick-weight-${filament.id}`} title="Aktuelles Gesamtgewicht (Spule + Filament)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3C7.03 3 3 7.03 3 12c0 1.62.43 3.14 1.2 4.5L8 12V8c0-2.21 1.79-4 4-4 1.47 0 2.75.8 3.44 2H18.8c-.56-2.9-3.2-5-6.44-5z"/><path d="M12 21c-1.68 0-3.23-.46-4.59-1.25L16 12v4c0 2.21-1.79 4-4 4zm4-13h-2.12c-.56-2.9-3.2-5-6.44-5C7.03 3 3 7.03 3 12c0 1.62.43 3.14 1.2 4.5L8 12V8c0-2.21 1.79-4 4-4 1.47 0 2.75.8 3.44 2z"/></svg>
+                </label>
+                <input
+                    ref={inputRef}
+                    id={`quick-weight-${filament.id}`}
+                    type="number"
+                    step="any"
+                    value={quickWeight}
+                    onChange={e => { e.stopPropagation(); setQuickWeight(e.target.value); }}
+                    onClick={e => e.stopPropagation()}
+                    onBlur={() => setQuickWeight(filament.totalWeight.toString())}
+                />
+                <span>g</span>
+                <button type="submit" className="button button-icon button-small" onClick={e => e.stopPropagation()} title="Gewicht speichern">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                </button>
+            </form>
         </div>
     );
 };
@@ -481,7 +558,8 @@ const FilamentMatrixView: React.FC<{
     filaments: Filament[];
     totalCount: number;
     onViewDetail: (id: string) => void;
-}> = ({ filaments, totalCount, onViewDetail }) => {
+    onUpdateWeight: (id: string, weight: number) => void;
+}> = ({ filaments, totalCount, onViewDetail, onUpdateWeight }) => {
     if (totalCount === 0) {
         return <div className="empty-state"><h3>Keine Spulen gefunden</h3><p>Fügen Sie Ihre erste Spule hinzu, um zu beginnen.</p></div>;
     }
@@ -492,7 +570,7 @@ const FilamentMatrixView: React.FC<{
         <div className="matrix-view">
             <div className="matrix-header"><p>Angezeigte Spulen: {filaments.length} / {totalCount}</p></div>
             <div className="matrix-grid">
-                {filaments.map(filament => <FilamentMatrixCard key={filament.id} filament={filament} onClick={() => onViewDetail(filament.id)} />)}
+                {filaments.map(filament => <FilamentMatrixCard key={filament.id} filament={filament} onClick={() => onViewDetail(filament.id)} onUpdateWeight={onUpdateWeight} />)}
             </div>
         </div>
     );
@@ -509,16 +587,21 @@ const DataPair: React.FC<{ label: string; value: React.ReactNode; unit?: string;
 };
 
 const FilamentDetailView: React.FC<{ 
-    filament: Filament; 
+    filament: Filament;
+    printers: Printer[];
     onDelete: (id: string) => void; 
     onEdit: (id: string) => void;
     onCopy: (id: string) => void;
     onPrint: (id: string) => void;
     onSelectLocation: (path: string) => void;
-}> = ({ filament, onDelete, onEdit, onCopy, onPrint, onSelectLocation }) => {
+}> = ({ filament, printers, onDelete, onEdit, onCopy, onPrint, onSelectLocation }) => {
     const currentFilamentWeight = useMemo(() => Math.max(0, filament.totalWeight - filament.spoolWeight), [filament.totalWeight, filament.spoolWeight]);
     const wikipediaUrl = `https://de.wikipedia.org/wiki/${encodeURIComponent(filament.type)}`;
-    
+    const assignedPrinterName = useMemo(() => {
+        if (filament.status !== 'Auf Drucker' || !filament.assignedPrinterId) return null;
+        return printers.find(p => p.id === filament.assignedPrinterId)?.name || 'Unbekannter Drucker';
+    }, [filament, printers]);
+
     return (
         <div className="detail-view-container">
             <div className="filament-datasheet">
@@ -530,7 +613,7 @@ const FilamentDetailView: React.FC<{
                     <DataPair label="Hersteller" value={filament.manufacturer} />
                     <DataPair label="Typ" value={<a href={wikipediaUrl} target="_blank" rel="noopener noreferrer">{filament.type}</a>} />
                     <DataPair label="Hersteller-Farbe" value={filament.manufacturerColor} />
-                    <DataPair label="Status" value={filament.status} />
+                    <DataPair label="Status" value={filament.status === 'Auf Drucker' ? `Auf Drucker (${assignedPrinterName})` : filament.status} />
                     <DataPair label="Ähnlichste Farbe" value={filament.color} />
                     <DataPair label="Farb-Code (Hex)" value={filament.colorHex} />
                     <DataPair label="Herstellungsdatum" value={filament.madeDate} />
@@ -899,6 +982,64 @@ const StorageManager: React.FC<{ initialTree: StorageNode[], onSave: (tree: Stor
     );
 };
 
+const PrinterManager: React.FC<{ initialPrinters: Printer[], onSave: (printers: Printer[]) => void, onClose: () => void }> = ({ initialPrinters, onSave, onClose }) => {
+    const [printers, setPrinters] = useState(initialPrinters);
+
+    const handleAdd = () => {
+        const newPrinter: Printer = {
+            id: crypto.randomUUID(),
+            name: 'Neuer Drucker',
+            manufacturer: '',
+            nozzle: '0.4mm'
+        };
+        setPrinters(prev => [...prev, newPrinter]);
+    };
+
+    const handleDelete = (id: string) => {
+        if (!window.confirm(`Sind Sie sicher, dass Sie diesen Drucker löschen möchten? Eine auf diesem Drucker geladene Spule wird auf den Status "Angebrochen" zurückgesetzt.`)) return;
+        setPrinters(prev => prev.filter(p => p.id !== id));
+    };
+    
+    const handleUpdate = (id: string, field: keyof Omit<Printer, 'id'>, value: string) => {
+         setPrinters(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
+    };
+
+    return (
+        <div className="modal-overlay">
+            <div className="printer-manager-container">
+                <h2>Druckerverwaltung</h2>
+                <div className="printer-manager-list">
+                    {printers.length > 0 ? (
+                        <div className="printer-list-header">
+                            <span>Name</span>
+                            <span>Hersteller</span>
+                            <span>Düse</span>
+                            <span>Aktionen</span>
+                        </div>
+                    ) : (
+                         <div className="empty-state-small">Keine Drucker gefunden. Fügen Sie Ihren ersten Drucker hinzu.</div>
+                    )}
+                    {printers.map(printer => (
+                        <div key={printer.id} className="printer-manager-item">
+                            <input type="text" value={printer.name} onChange={e => handleUpdate(printer.id, 'name', e.target.value)} placeholder="z.B. Ender 3 V2" />
+                            <input type="text" value={printer.manufacturer} onChange={e => handleUpdate(printer.id, 'manufacturer', e.target.value)} placeholder="z.B. Creality" />
+                            <input type="text" value={printer.nozzle} onChange={e => handleUpdate(printer.id, 'nozzle', e.target.value)} placeholder="z.B. 0.4mm Brass" />
+                            <div className="item-actions">
+                                <button onClick={() => handleDelete(printer.id)} title="Löschen" className="button button-icon button-small button-danger">🗑</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <button onClick={handleAdd} className="button button-secondary">Neuen Drucker hinzufügen</button>
+                <div className="form-actions">
+                    <button onClick={onClose} className="button button-secondary">Abbrechen</button>
+                    <button onClick={() => onSave(printers)} className="button">Speichern & Schließen</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const UserGuide: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     return (
         <div className="modal-overlay" onClick={onClose}>
@@ -927,19 +1068,19 @@ const UserGuide: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <h3>Spulen verwalten</h3>
                         <ul>
                             <li><strong>Neue Spule:</strong> Fügt eine neue, leere Spule zu Ihrer Sammlung hinzu.</li>
+                            <li><strong>Gewicht schnell ändern:</strong> Nutzen Sie das Eingabefeld unten auf jeder Spulenkarte, um das Gesamtgewicht schnell nach dem Wiegen zu aktualisieren.</li>
                             <li><strong>Datenblatt:</strong> Klicken Sie auf eine Spulen-Karte, um die Detailansicht zu öffnen. Hier sehen Sie alle erfassten Daten.</li>
                             <li><strong>Bearbeiten, Kopieren, Löschen:</strong> In der Detailansicht können Sie eine Spule bearbeiten, sie als Vorlage für eine neue Spule kopieren oder endgültig löschen.</li>
+                            <li><strong>Status "Auf Drucker":</strong> Weisen Sie eine Spule einem Drucker zu, um den Überblick zu behalten, was gerade geladen ist.</li>
                         </ul>
                     </section>
                     <section>
-                        <h3>Lagerverwaltung</h3>
-                        <p>Organisieren Sie Ihr Lager mit einer hierarchischen Baumstruktur.</p>
+                        <h3>Lager- & Druckerverwaltung</h3>
+                        <p>Organisieren Sie Ihr Lager und Ihre Drucker.</p>
                         <ul>
-                            <li>Klicken Sie auf "Lagerverwaltung" im Header, um das Menü zu öffnen.</li>
-                            <li><strong>Ebene hinzufügen:</strong> Fügen Sie neue Haupt-Lagerorte (z.B. Regale) hinzu.</li>
-                            <li><strong>Unterordner hinzufügen (+):</strong> Erstellen Sie eine verschachtelte Struktur (z.B. Regal {'>'} Fach {'>'} Box).</li>
+                            <li>Klicken Sie auf "Lagerverwaltung" oder "Druckerverwaltung" im Header, um die jeweiligen Menüs zu öffnen.</li>
+                            <li><strong>Einträge hinzufügen/bearbeiten/löschen:</strong> Verwalten Sie Ihre Lagerorte und Drucker.</li>
                             <li><strong>Etikett drucken (Drucker-Icon):</strong> Drucken Sie für jeden Lagerort ein Etikett mit Name und QR-Code.</li>
-                            <li><strong>Umbenennen (✎) & Löschen (🗑):</strong> Verwalten Sie Ihre Lagerorte. Beim Löschen eines Ortes werden die darin enthaltenen Spulen zu "Nicht eingelagert".</li>
                         </ul>
                     </section>
                      <section>
@@ -998,6 +1139,17 @@ const ColorCodeListView: React.FC<{ colors: ColorCodeInfo[], onClose: () => void
     );
 };
 
+const ActivePrintersIndicator: React.FC<{ activeFilamentsCount: number }> = ({ activeFilamentsCount }) => {
+    if (activeFilamentsCount === 0) return null;
+
+    return (
+        <div className="active-printer-indicator" title={`${activeFilamentsCount} Drucker in Benutzung`}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+            <span className="count-badge">{activeFilamentsCount}</span>
+        </div>
+    );
+};
+
 const WelcomeView: React.FC<{ onCreateNew: () => void; onLoadFile: () => void; }> = ({ onCreateNew, onLoadFile }) => (
     <div className="initial-view-container">
         <h2>Willkommen bei Ihrer Filament-Lagerverwaltung!</h2>
@@ -1008,11 +1160,12 @@ const WelcomeView: React.FC<{ onCreateNew: () => void; onLoadFile: () => void; }
 
 const App: React.FC = () => {
     type AppStatus = 'LOADING' | 'FIRST_RUN' | 'READY';
-    type AppMode = 'list' | 'detail' | 'add' | 'edit' | 'storage_manager';
+    type AppMode = 'list' | 'detail' | 'add' | 'edit' | 'storage_manager' | 'printer_manager';
 
     const [appStatus, setAppStatus] = useState<AppStatus>('LOADING');
     const [filaments, setFilamentsInternal] = useState<Filament[]>([]);
     const [storageTree, setStorageTreeInternal] = useState<StorageNode[]>([]);
+    const [printers, setPrintersInternal] = useState<Printer[]>([]);
     const [idCounters, setIdCountersInternal] = useState<any>({});
     const [mode, setMode] = useState<AppMode>('list');
     const [currentFilamentId, setCurrentFilamentId] = useState<string | null>(null);
@@ -1034,6 +1187,7 @@ const App: React.FC = () => {
     const markUnsaved = () => appStatus === 'READY' && setHasUnsavedChanges(true);
     const setFilaments = (updater: React.SetStateAction<Filament[]>) => { setFilamentsInternal(updater); markUnsaved(); };
     const setStorageTree = (updater: React.SetStateAction<StorageNode[]>) => { setStorageTreeInternal(updater); markUnsaved(); };
+    const setPrinters = (updater: React.SetStateAction<Printer[]>) => { setPrintersInternal(updater); markUnsaved(); };
     const setIdCounters = (updater: React.SetStateAction<any>) => { setIdCountersInternal(updater); markUnsaved(); };
 
     useEffect(() => {
@@ -1042,11 +1196,12 @@ const App: React.FC = () => {
             if (rawData === null) setAppStatus('FIRST_RUN');
             else {
                 const data = JSON.parse(rawData);
-                const { filaments, storageTree, idCounters } = migrateData(data);
+                const { filaments, storageTree, idCounters, printers } = migrateData(data);
                 
                 setFilamentsInternal(filaments);
                 setStorageTreeInternal(storageTree);
                 setIdCountersInternal(idCounters);
+                setPrintersInternal(printers);
                 setAppStatus('READY');
             }
         } catch (e) { console.error(e); setAppStatus('LOADING'); /* Will be caught by main error boundary */ }
@@ -1055,11 +1210,11 @@ const App: React.FC = () => {
     useEffect(() => {
         if (appStatus === 'READY' && hasUnsavedChanges) {
             try {
-                window.localStorage.setItem('app_data', JSON.stringify({ filaments, storageTree, idCounters }));
+                window.localStorage.setItem('app_data', JSON.stringify({ filaments, storageTree, idCounters, printers }));
                 setHasUnsavedChanges(false);
             } catch (e) { console.error(e); /* Error state needed */ }
         }
-    }, [filaments, storageTree, idCounters, appStatus, hasUnsavedChanges]);
+    }, [filaments, storageTree, idCounters, printers, appStatus, hasUnsavedChanges]);
     
     useEffect(() => {
         if ((mode === 'detail' || mode === 'edit') && currentFilamentId && !filaments.some(f => f.id === currentFilamentId)) handleGoToOverview();
@@ -1067,35 +1222,54 @@ const App: React.FC = () => {
 
     const saveFilament = (filamentData: Omit<Filament, 'id'> & { id?: string }) => {
         const isEditing = !!filamentData.id;
+        
+        const cleanFilamentData = { ...filamentData };
+        if (cleanFilamentData.status !== 'Auf Drucker') {
+            cleanFilamentData.assignedPrinterId = undefined;
+        }
 
         if (isEditing) {
-            const originalFilament = filaments.find(f => f.id === filamentData.id);
+            const originalFilament = filaments.find(f => f.id === cleanFilamentData.id);
             if (!originalFilament) return;
 
-            const hasCoreChange = originalFilament.type !== filamentData.type || originalFilament.manufacturerColor !== filamentData.manufacturerColor;
+            const hasCoreChange = originalFilament.type !== cleanFilamentData.type || originalFilament.manufacturerColor !== cleanFilamentData.manufacturerColor;
 
             if (hasCoreChange) {
                 if (!window.confirm("Sie haben Typ oder Herstellerfarbe geändert. Dadurch wird eine neue, eindeutige Spulen-ID generiert und das alte Etikett wird ungültig. Möchten Sie fortfahren?")) {
                     return; // User cancelled
                 }
-                const { newId, updatedCounters } = generateNewIdAndUpdateCounters(filamentData.type!, filamentData.manufacturerColor!, idCounters);
-                const updatedFilamentWithNewId: Filament = { ...(filamentData as Omit<Filament, 'id'>), id: newId };
+                const { newId, updatedCounters } = generateNewIdAndUpdateCounters(cleanFilamentData.type!, cleanFilamentData.manufacturerColor!, idCounters);
+                const updatedFilamentWithNewId: Filament = { ...(cleanFilamentData as Omit<Filament, 'id'>), id: newId };
 
                 setIdCounters(updatedCounters);
                 setFilaments(prev => prev.map(f => f.id === originalFilament.id ? updatedFilamentWithNewId : f));
                 setCurrentFilamentId(newId);
                 setMode('detail');
             } else {
-                setFilaments(prev => prev.map(f => (f.id === filamentData.id ? { ...f, ...(filamentData as Filament) } : f)));
-                setCurrentFilamentId(filamentData.id!);
+                setFilaments(prev => prev.map(f => {
+                    if (cleanFilamentData.status === 'Auf Drucker' && f.assignedPrinterId === cleanFilamentData.assignedPrinterId && f.id !== cleanFilamentData.id) {
+                        return { ...f, status: 'Angebrochen', assignedPrinterId: undefined };
+                    }
+                    if (f.id === cleanFilamentData.id) {
+                        return { ...f, ...(cleanFilamentData as Filament) };
+                    }
+                    return f;
+                }));
+                setCurrentFilamentId(cleanFilamentData.id!);
                 setMode('detail');
             }
         } else {
-            const { newId, updatedCounters } = generateNewIdAndUpdateCounters(filamentData.type!, filamentData.manufacturerColor!, idCounters);
-            const newFilament: Filament = { ...(filamentData as Omit<Filament, 'id'>), id: newId };
+            const { newId, updatedCounters } = generateNewIdAndUpdateCounters(cleanFilamentData.type!, cleanFilamentData.manufacturerColor!, idCounters);
+            const newFilament: Filament = { ...(cleanFilamentData as Omit<Filament, 'id'>), id: newId };
             
             setIdCounters(updatedCounters);
-            setFilaments(prev => [...prev, newFilament]);
+            setFilaments(prev => {
+                let updatedList = [...prev];
+                if (newFilament.status === 'Auf Drucker' && newFilament.assignedPrinterId) {
+                    updatedList = updatedList.map(f => f.assignedPrinterId === newFilament.assignedPrinterId ? { ...f, assignedPrinterId: undefined, status: 'Angebrochen' } : f);
+                }
+                return [...updatedList, newFilament];
+            });
             setCurrentFilamentId(newId);
             setMode('detail');
         }
@@ -1117,6 +1291,11 @@ const App: React.FC = () => {
         setInitialDataForForm(filaments.find(f => f.id === id) || null);
         setCurrentFilamentId(id);
         setMode('edit');
+    };
+    
+    const handleUpdateWeight = (id: string, newTotalWeight: number) => {
+        setFilaments(prev => prev.map(f => f.id === id ? {...f, totalWeight: newTotalWeight} : f));
+        setIsDirty(true);
     };
 
     const handleCopy = (id: string) => {
@@ -1145,7 +1324,7 @@ const App: React.FC = () => {
 
     const handleSaveData = async () => {
         if (filaments.length === 0 && storageTree.length === 0) { alert("Es sind keine Daten zum Speichern vorhanden."); return; }
-        const jsonString = JSON.stringify({ filaments, storageTree, idCounters }, null, 2);
+        const jsonString = JSON.stringify({ filaments, storageTree, idCounters, printers }, null, 2);
         const blob = new Blob([jsonString], { type: "application/json" });
         if ('showSaveFilePicker' in window) {
             try {
@@ -1180,10 +1359,11 @@ const App: React.FC = () => {
                 const { filaments: importedFilaments, storageTree: importedTree } = migrateData(data);
                 
                 if (window.confirm(`Möchten Sie den aktuellen Bestand durch die importierten Daten (${importedFilaments.length} Spulen, ${importedTree.length} Lagerorte) ERSETZEN?`)) {
-                    const { filaments: finalFilaments, storageTree: finalTree, idCounters: finalCounters } = migrateData(data);
+                    const { filaments: finalFilaments, storageTree: finalTree, idCounters: finalCounters, printers: finalPrinters } = migrateData(data);
                     setFilamentsInternal(finalFilaments);
                     setStorageTreeInternal(finalTree);
                     setIdCountersInternal(finalCounters);
+                    setPrintersInternal(finalPrinters);
                     setHasUnsavedChanges(true); // Mark as unsaved to trigger save to localstorage
                     setAppStatus('READY');
                     handleGoToOverview();
@@ -1244,13 +1424,26 @@ const App: React.FC = () => {
             setFilaments(prev => prev.map(f => deletedPaths.includes(f.locationPath) ? { ...f, locationPath: '' } : f));
         }
         
-        // This is complex, skipping advanced rename-path-update for now.
-        
         setStorageTree(newTree);
         setMode('list');
         setIsDirty(true);
     };
     
+    const handleSavePrinters = (newPrinters: Printer[]) => {
+        const deletedPrinterIds = printers.filter(oldP => !newPrinters.some(newP => newP.id === oldP.id)).map(p => p.id);
+        if (deletedPrinterIds.length > 0) {
+            setFilaments(prev => prev.map(f => {
+                if (f.assignedPrinterId && deletedPrinterIds.includes(f.assignedPrinterId)) {
+                    return { ...f, status: 'Angebrochen', assignedPrinterId: undefined };
+                }
+                return f;
+            }));
+        }
+        setPrinters(newPrinters);
+        setMode('list');
+        setIsDirty(true);
+    };
+
     const handleGlobalScan = (scannedText: string) => {
         setIsScanning(false);
         if (scannedText.startsWith('FMT_SPOOL::')) {
@@ -1284,6 +1477,7 @@ const App: React.FC = () => {
     }, [filaments, locationFilter, typeFilter, colorFilter]);
 
     const currentFilamentForView = useMemo(() => (mode === 'detail') ? filaments.find(f => f.id === currentFilamentId) || null : null, [filaments, mode, currentFilamentId]);
+    const activeFilamentsCount = useMemo(() => filaments.filter(f => f.status === 'Auf Drucker').length, [filaments]);
 
     const handleReset = () => {
         if(window.confirm("Möchten Sie die App wirklich zurücksetzen? Alle nicht gespeicherten Daten gehen verloren.")) {
@@ -1291,6 +1485,7 @@ const App: React.FC = () => {
             setFilamentsInternal([]);
             setStorageTreeInternal([]);
             setIdCountersInternal({});
+            setPrintersInternal([]);
             setHasUnsavedChanges(false);
             setMode('list');
             setCurrentFilamentId(null);
@@ -1304,6 +1499,7 @@ const App: React.FC = () => {
         setFilamentsInternal([]);
         setStorageTreeInternal([]);
         setIdCountersInternal({});
+        setPrintersInternal([]);
         setHasUnsavedChanges(true); // Mark as unsaved to trigger save of empty state
         setMode('list');
         setCurrentFilamentId(null);
@@ -1320,6 +1516,7 @@ const App: React.FC = () => {
                 <header>
                     <h1>FMT <span className="header-subtitle">Filament Management Tool</span></h1>
                     <div className="header-actions">
+                        <ActivePrintersIndicator activeFilamentsCount={activeFilamentsCount} />
                         <button className="button button-icon" onClick={() => setShowColorCodeList(true)} title="Farb-Code-Liste anzeigen">
                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.34 0 .67-.02 1-.05M7.32 18.7c.84-.58 1.58-1.25 2.2-2M15 2.46A8.92 8.92 0 0 1 21.54 9c.74 2.5.21 5.25-1.54 7.25-.87 1-1.87 1.8-3 2.45M18.7 7.32c-.58-.84-1.25-1.58-2-2.2M9 21.54A8.92 8.92 0 0 1 2.46 15c-2.5-.74-5.25-.21-7.25 1.54-1 .87-1.8 1.87-2.45 3"/></svg>
                         </button>
@@ -1327,6 +1524,7 @@ const App: React.FC = () => {
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                         </button>
                         <div className="separator"></div>
+                        {mode === 'list' && <button className="button button-secondary" onClick={() => setMode('printer_manager')}>Druckerverwaltung</button>}
                         {mode === 'list' && <button className="button button-secondary" onClick={() => setMode('storage_manager')}>Lagerverwaltung</button>}
                         <button className="button" onClick={() => setIsScanning(true)}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg> Scannen</button>
                         <button className="button button-secondary" onClick={() => fileInputRef.current?.click()}>Laden</button>
@@ -1362,11 +1560,11 @@ const App: React.FC = () => {
                                         Zurücksetzen
                                     </button>
                                 </div>
-                                <FilamentMatrixView filaments={filteredFilaments} totalCount={filaments.length} onViewDetail={handleViewDetail} />
+                                <FilamentMatrixView filaments={filteredFilaments} totalCount={filaments.length} onViewDetail={handleViewDetail} onUpdateWeight={handleUpdateWeight} />
                             </>
                         )}
-                         {mode === 'detail' && currentFilamentForView && <FilamentDetailView filament={currentFilamentForView} onDelete={deleteFilament} onEdit={handleStartEdit} onCopy={handleCopy} onPrint={handlePrintFilament} onSelectLocation={handleSelectLocation} />}
-                         {(mode === 'add' || mode === 'edit') && <FilamentForm onSave={saveFilament} onCancel={handleCancelForm} initialData={initialDataForForm} isEditing={mode === 'edit'} storageLocations={allLocationPaths} />}
+                         {mode === 'detail' && currentFilamentForView && <FilamentDetailView filament={currentFilamentForView} printers={printers} onDelete={deleteFilament} onEdit={handleStartEdit} onCopy={handleCopy} onPrint={handlePrintFilament} onSelectLocation={handleSelectLocation} />}
+                         {(mode === 'add' || mode === 'edit') && <FilamentForm onSave={saveFilament} onCancel={handleCancelForm} initialData={initialDataForForm} isEditing={mode === 'edit'} storageLocations={allLocationPaths} printers={printers} filaments={filaments} />}
                     </div>
                 </div>
             </main>
@@ -1374,6 +1572,7 @@ const App: React.FC = () => {
             {printingLocation && <div className="print-modal-wrapper"><LocationLabelPreview locationPath={printingLocation} onClose={() => setPrintingLocation(null)} /></div>}
             {isScanning && <BarcodeScanner onScan={handleGlobalScan} onClose={() => setIsScanning(false)} />}
             {mode === 'storage_manager' && <StorageManager initialTree={storageTree} onSave={handleSaveStorageTree} onClose={() => setMode('list')} onPrint={handlePrintLocation} />}
+            {mode === 'printer_manager' && <PrinterManager initialPrinters={printers} onSave={handleSavePrinters} onClose={() => setMode('list')} />}
             {showUserGuide && <UserGuide onClose={() => setShowUserGuide(false)} />}
             {showColorCodeList && <div className="print-modal-wrapper"><ColorCodeListView colors={colorCodeData} onClose={() => setShowColorCodeList(false)} /></div>}
         </>

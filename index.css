@@ -1,4 +1,3 @@
-
 :root {
     --primary-bg: #1a1a1a;
     --secondary-bg: #2a2a2a;
@@ -117,26 +116,44 @@ a.button.disabled { opacity: 0.5; cursor: not-allowed; background-color: var(--t
     transition: max-height 0.5s ease-in;
 }
 
-/* --- Storage Manager --- */
-.storage-manager-container {
+/* --- Storage & Printer Manager --- */
+.storage-manager-container, .printer-manager-container {
     background: var(--secondary-bg);
     padding: 2rem;
     border-radius: 12px;
     width: 90%;
-    max-width: 600px;
+    max-width: 800px;
     max-height: 80vh;
     display: flex;
     flex-direction: column;
 }
-.storage-manager-tree { overflow-y: auto; flex-grow: 1; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1.5rem; }
+.storage-manager-tree, .printer-manager-list { overflow-y: auto; flex-grow: 1; padding: 1rem; border: 1px solid var(--border-color); border-radius: 8px; margin-bottom: 1.5rem; }
 .storage-manager-tree ul { list-style: none; padding-left: 1.5rem; }
 .storage-manager-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-radius: 4px; }
 .storage-manager-item:hover { background-color: var(--tertiary-bg); }
 .storage-manager-item .item-actions { display: flex; gap: 0.5rem; }
 
-.button.has-unsaved-changes { position: relative; }
-.button.has-unsaved-changes::after { content: ''; position: absolute; top: 8px; right: 8px; width: 10px; height: 10px; border-radius: 50%; background-color: var(--success); border: 2px solid var(--secondary-bg); animation: pulse 1.5s infinite; }
+.printer-manager-list .printer-list-header {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 80px;
+    gap: 1rem;
+    padding: 0 0.75rem 0.5rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+}
+.printer-manager-item { display: grid; grid-template-columns: 1fr 1fr 1fr 80px; gap: 1rem; align-items: center; padding: 0.5rem 0; }
+.printer-manager-item input { padding: 0.5rem; }
+.printer-manager-item .item-actions { display: flex; justify-content: center; }
+
+.button.has-unsaved-changes, .active-printer-indicator { position: relative; }
+.button.has-unsaved-changes::after, .active-printer-indicator::after { content: ''; position: absolute; top: -2px; right: -2px; width: 10px; height: 10px; border-radius: 50%; background-color: var(--success); border: 2px solid var(--secondary-bg); animation: pulse 1.5s infinite; }
+.active-printer-indicator { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background-color: var(--tertiary-bg); border-radius: 8px; color: var(--text-secondary); cursor: help; }
+.active-printer-indicator svg { color: var(--text-primary); }
+.active-printer-indicator::after { background-color: var(--primary-accent); animation: pulse-blue 1.5s infinite; }
+.count-badge { position: absolute; top: -5px; right: -5px; background: var(--error); color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 0.75rem; font-weight: bold; display: flex; align-items: center; justify-content: center; line-height: 1; }
 @keyframes pulse { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); } }
+@keyframes pulse-blue { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 123, 255, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); } }
 
 .form-container { background-color: var(--secondary-bg); padding: 2rem; border-radius: 12px; display: flex; flex-direction: column; gap: 1.5rem; }
 fieldset { border: 1px solid var(--border-color); padding: 1.5rem; border-radius: 8px; display: flex; flex-direction: column; gap: 1rem; }
@@ -192,13 +209,36 @@ input[type="color"]::-moz-color-swatch { border-radius: 6px; border: none; }
 .matrix-view { display: flex; flex-direction: column; gap: 1rem; }
 .matrix-header { text-align: right; color: var(--text-secondary); }
 .matrix-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
-.matrix-card { background-color: var(--secondary-bg); border-radius: 8px; padding: 1rem; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; border: 1px solid var(--border-color); border-left-width: 5px; display: flex; flex-direction: column; gap: 0.5rem; }
+.matrix-card { background-color: var(--secondary-bg); border-radius: 8px; cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; border: 1px solid var(--border-color); border-left-width: 5px; display: flex; flex-direction: column; overflow: hidden; }
 .matrix-card:hover { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.2); border-color: var(--primary-accent); border-left-color: var(--primary-accent) !important; }
+.matrix-card-content { padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; flex-grow: 1; }
 .matrix-card-top { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
 .matrix-card-info { display: flex; flex-direction: column; gap: 0.25rem; overflow: hidden; }
 .matrix-card-type { font-weight: 600; font-size: 1.1rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .matrix-card-color { font-size: 0.9rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .matrix-card-location { font-size: 0.8rem; color: var(--primary-accent); margin-top: 0.5rem; border-top: 1px solid var(--border-color); padding-top: 0.5rem; }
+
+/* --- Matrix Card Quick Edit --- */
+.matrix-card-quick-edit {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    background-color: var(--tertiary-bg);
+    padding: 0.5rem 1rem;
+    border-top: 1px solid var(--border-color);
+}
+.matrix-card-quick-edit label { color: var(--text-secondary); display: flex; align-items: center; }
+.matrix-card-quick-edit input {
+    flex-grow: 1;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.9rem;
+    text-align: right;
+    background-color: var(--primary-bg);
+}
+.matrix-card-quick-edit span { font-size: 0.9rem; color: var(--text-secondary); }
+.matrix-card-quick-edit .button-icon { padding: 0.25rem; height: 28px; width: 28px; background-color: var(--primary-bg); }
+.matrix-card-quick-edit .button-icon:hover { background-color: var(--border-color); }
+.matrix-card-quick-edit .button-icon svg { width: 16px; height: 16px; }
 
 /* --- Percentage Indicator --- */
 .filament-percentage-indicator { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
