@@ -135,7 +135,7 @@ a.button.disabled { opacity: 0.5; cursor: not-allowed; background-color: var(--t
 
 .printer-manager-list .printer-list-header {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr 80px;
+    grid-template-columns: 1fr 1fr 1fr 1.2fr 80px;
     gap: 1rem;
     padding: 0 0.75rem 0.5rem;
     font-weight: 600;
@@ -144,10 +144,21 @@ a.button.disabled { opacity: 0.5; cursor: not-allowed; background-color: var(--t
 }
 .printer-manager-item {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr 80px;
+    grid-template-columns: 1fr 1fr 1fr 1.2fr 80px;
     gap: 1rem;
     align-items: center;
     padding: 0.5rem 0;
+}
+.printer-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+.printer-input-group label {
+    display: none;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
 }
 .printer-manager-item input { padding: 0.5rem; }
 .printer-manager-item .item-actions { display: flex; justify-content: center; }
@@ -461,10 +472,31 @@ a:hover { text-decoration: underline; }
     .header-actions { width: 100%; justify-content: flex-start; }
     .form-container, .filament-datasheet { padding: 1.5rem; }
     .form-row, .form-row-3, .form-row-4 { grid-template-columns: 1fr; }
-    /* Moved from 480px for better mobile responsiveness */
+
     .form-actions, .card-footer, .print-actions { flex-direction: column; }
     .form-actions .button, .card-footer .button, .print-actions .button, 
     .form-actions a.button, .card-footer a.button, .print-actions a.button { width: 100%; }
+
+    /* Printer Manager Mobile Styles */
+    .printer-manager-list .printer-list-header {
+        display: none;
+    }
+    .printer-manager-item {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+        padding: 1rem 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    .printer-manager-item:last-child {
+        border-bottom: none;
+    }
+    .printer-input-group label {
+        display: block;
+    }
+    .printer-manager-item .item-actions {
+        justify-content: flex-end;
+        margin-top: 0.5rem;
+    }
 }
 
 @media (max-width: 480px) {

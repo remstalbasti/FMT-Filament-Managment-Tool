@@ -562,7 +562,6 @@ const FilamentMatrixCard: React.FC<{ filament: Filament; printers: Printer[]; on
                     value={quickWeight}
                     onChange={e => { e.stopPropagation(); setQuickWeight(e.target.value); }}
                     onClick={e => e.stopPropagation()}
-                    onBlur={() => setQuickWeight(filament.totalWeight.toString())}
                 />
                 <span>g</span>
                 <button type="submit" className="button button-icon button-small" onClick={e => e.stopPropagation()} title="Gewicht speichern">
@@ -1049,10 +1048,22 @@ const PrinterManager: React.FC<{ initialPrinters: Printer[], onSave: (printers: 
                     )}
                     {printers.map(printer => (
                         <div key={printer.id} className="printer-manager-item">
-                            <input type="text" value={printer.name} onChange={e => handleUpdate(printer.id, 'name', e.target.value)} placeholder="z.B. Ender 3 V2" />
-                            <input type="text" value={printer.manufacturer} onChange={e => handleUpdate(printer.id, 'manufacturer', e.target.value)} placeholder="z.B. Creality" />
-                            <input type="text" value={printer.nozzle} onChange={e => handleUpdate(printer.id, 'nozzle', e.target.value)} placeholder="z.B. 0.4mm Brass" />
-                            <input type="number" step="0.01" value={printer.filamentDiameter} onChange={e => handleUpdate(printer.id, 'filamentDiameter', e.target.value)} placeholder="z.B. 1.75" />
+                            <div className="printer-input-group">
+                                <label htmlFor={`printer-name-${printer.id}`}>Name</label>
+                                <input id={`printer-name-${printer.id}`} type="text" value={printer.name} onChange={e => handleUpdate(printer.id, 'name', e.target.value)} placeholder="z.B. Ender 3 V2" />
+                            </div>
+                            <div className="printer-input-group">
+                                <label htmlFor={`printer-manufacturer-${printer.id}`}>Hersteller</label>
+                                <input id={`printer-manufacturer-${printer.id}`} type="text" value={printer.manufacturer} onChange={e => handleUpdate(printer.id, 'manufacturer', e.target.value)} placeholder="z.B. Creality" />
+                            </div>
+                            <div className="printer-input-group">
+                                 <label htmlFor={`printer-nozzle-${printer.id}`}>Düse</label>
+                                <input id={`printer-nozzle-${printer.id}`} type="text" value={printer.nozzle} onChange={e => handleUpdate(printer.id, 'nozzle', e.target.value)} placeholder="z.B. 0.4mm Brass" />
+                            </div>
+                            <div className="printer-input-group">
+                                <label htmlFor={`printer-diameter-${printer.id}`}>Filamentdurchmesser (mm)</label>
+                                <input id={`printer-diameter-${printer.id}`} type="number" step="0.01" value={printer.filamentDiameter} onChange={e => handleUpdate(printer.id, 'filamentDiameter', e.target.value)} placeholder="z.B. 1.75" />
+                            </div>
                             <div className="item-actions">
                                 <button onClick={() => handleDelete(printer.id)} title="Löschen" className="button button-icon button-small button-danger">🗑</button>
                             </div>
