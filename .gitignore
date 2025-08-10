@@ -4,6 +4,9 @@
 # Build output
 /dist
 
+# Alt und Versuche
+/ALT
+
 # Logs
 npm-debug.log*
 yarn-debug.log*
