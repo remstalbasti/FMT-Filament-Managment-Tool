@@ -1,7 +1,8 @@
+
 import './index.css';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
+import { BrowserMultiFormatReader, NotFoundException, DecodeHintType } from '@zxing/library';
 import namer from 'color-namer';
 import QRCode from 'qrcode';
 
@@ -240,7 +241,7 @@ const migrateData = (data: any): {filaments: Filament[], storageTree: StorageNod
 const BarcodeScanner: React.FC<{ onScan: (barcode: string) => void; onClose: () => void; }> = ({ onScan, onClose }) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [error, setError] = useState<string | null>(null);
-    const codeReaderRef = useRef(new BrowserMultiFormatReader());
+    const codeReaderRef = useRef(new BrowserMultiFormatReader(new Map([[DecodeHintType.TRY_HARDER, true]])));
 
     useEffect(() => {
         const codeReader = codeReaderRef.current;
@@ -1141,6 +1142,107 @@ const UserGuide: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     );
 };
 
+const StatisticsView: React.FC<{ filaments: Filament[]; onClose: () => void }> = ({ filaments, onClose }) => {
+    const stats = useMemo(() => {
+        if (filaments.length === 0) return null;
+
+        let totalValue = 0;
+        let totalWeight = 0;
+        const valueByType: { [key: string]: number } = {};
+        const valueByDiameter: { [key: string]: number } = {};
+        const weightByType: { [key: string]: number } = {};
+
+        filaments.forEach(f => {
+            const currentWeight = Math.max(0, f.totalWeight - f.spoolWeight);
+            totalWeight += currentWeight;
+            
+            const remainingRatio = f.spoolSize > 0 ? currentWeight / f.spoolSize : 0;
+            const currentValue = (f.price || 0) * remainingRatio;
+            totalValue += currentValue;
+            
+            const typeKey = f.type || 'Unbekannt';
+            valueByType[typeKey] = (valueByType[typeKey] || 0) + currentValue;
+            weightByType[typeKey] = (weightByType[typeKey] || 0) + currentWeight;
+
+            const diameterKey = (f.diameter || 0).toFixed(2);
+            valueByDiameter[diameterKey] = (valueByDiameter[diameterKey] || 0) + currentValue;
+        });
+
+        return {
+            totalSpools: filaments.length,
+            totalValue,
+            totalWeight,
+            valueByType: Object.entries(valueByType).sort((a,b) => b[1] - a[1]),
+            weightByType, // No need to sort this one as it's a map for lookup
+            valueByDiameter: Object.entries(valueByDiameter).sort((a,b) => b[1] - a[1]),
+        };
+    }, [filaments]);
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="statistics-modal-container" onClick={(e) => e.stopPropagation()}>
+                <h2>Lager-Statistik</h2>
+                <div className="statistics-content">
+                    {stats ? (
+                        <>
+                            <section>
+                                <h3>Gesamtübersicht</h3>
+                                <div className="stats-list">
+                                    <div className="stats-item">
+                                        <span className="label">Anzahl Spulen</span>
+                                        <span className="value">{stats.totalSpools}</span>
+                                    </div>
+                                    <div className="stats-item">
+                                        <span className="label">Geschätzter Gesamtwert</span>
+                                        <span className="value">{stats.totalValue.toFixed(2)} €</span>
+                                    </div>
+                                    <div className="stats-item">
+                                        <span className="label">Gesamtgewicht Filament</span>
+                                        <span className="value">
+                                            {(stats.totalWeight / 1000).toFixed(2)} kg
+                                            <span className="value secondary">({stats.totalWeight.toFixed(0)} g)</span>
+                                        </span>
+                                    </div>
+                                </div>
+                            </section>
+                            <section>
+                                <h3>Nach Materialtyp</h3>
+                                <div className="stats-list">
+                                    {stats.valueByType.map(([type, value]) => (
+                                        <div className="stats-item" key={type}>
+                                            <span className="label">{type}</span>
+                                            <span className="value">
+                                                {value.toFixed(2)} €
+                                                <span className="value secondary">({((stats.weightByType[type] || 0) / 1000).toFixed(2)} kg)</span>
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                             <section>
+                                <h3>Nach Durchmesser</h3>
+                                <div className="stats-list">
+                                    {stats.valueByDiameter.map(([diameter, value]) => (
+                                        <div className="stats-item" key={diameter}>
+                                            <span className="label">{diameter} mm</span>
+                                            <span className="value">{value.toFixed(2)} €</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </>
+                    ) : (
+                        <div className="empty-state-small">Keine Spulen im Bestand, um Statistiken zu erstellen.</div>
+                    )}
+                </div>
+                <div className="form-actions">
+                    <button onClick={onClose} className="button">Schließen</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const ColorCodeListView: React.FC<{ colors: ColorCodeInfo[], onClose: () => void }> = ({ colors, onClose }) => {
     return (
         <div className="color-list-modal-container" onClick={onClose}>
@@ -1209,6 +1311,7 @@ const App: React.FC = () => {
     const [isScanning, setIsScanning] = useState(false);
     const [showUserGuide, setShowUserGuide] = useState(false);
     const [showColorCodeList, setShowColorCodeList] = useState(false);
+    const [showStatistics, setShowStatistics] = useState(false);
 
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1476,12 +1579,12 @@ const App: React.FC = () => {
     const handleGlobalScan = (scannedText: string) => {
         setIsScanning(false);
         if (scannedText.startsWith('FMT_SPOOL::')) {
-            const id = scannedText.split('::')[1];
+            const id = scannedText.replace('FMT_SPOOL::', '');
             if (filaments.some(f => f.id === id)) {
                 handleViewDetail(id);
             } else alert("Spule nicht gefunden.");
         } else if (scannedText.startsWith('FMT_LOCATION::')) {
-            const path = scannedText.split('::')[1];
+            const path = scannedText.replace('FMT_LOCATION::', '');
             if (allLocationPaths.includes(path) || path === "") {
                 setLocationFilter(path);
                 handleGoToOverview();
@@ -1547,6 +1650,9 @@ const App: React.FC = () => {
                         <button className="button button-icon" onClick={() => setShowColorCodeList(true)} title="Farb-Code-Liste anzeigen">
                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.34 0 .67-.02 1-.05M7.32 18.7c.84-.58 1.58-1.25 2.2-2M15 2.46A8.92 8.92 0 0 1 21.54 9c.74 2.5.21 5.25-1.54 7.25-.87 1-1.87 1.8-3 2.45M18.7 7.32c-.58-.84-1.25-1.58-2-2.2M9 21.54A8.92 8.92 0 0 1 2.46 15c-2.5-.74-5.25-.21-7.25 1.54-1 .87-1.8 1.87-2.45 3"/></svg>
                         </button>
+                        <button className="button button-icon" onClick={() => setShowStatistics(true)} title="Lager-Statistik anzeigen">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>
+                        </button>
                          <button className="button button-icon" onClick={() => setShowUserGuide(true)} title="Bedienungsanleitung anzeigen">
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                         </button>
@@ -1601,6 +1707,7 @@ const App: React.FC = () => {
             {mode === 'storage_manager' && <StorageManager initialTree={storageTree} onSave={handleSaveStorageTree} onClose={() => setMode('list')} onPrint={handlePrintLocation} />}
             {mode === 'printer_manager' && <PrinterManager initialPrinters={printers} onSave={handleSavePrinters} onClose={() => setMode('list')} />}
             {showUserGuide && <UserGuide onClose={() => setShowUserGuide(false)} />}
+            {showStatistics && <StatisticsView filaments={filaments} onClose={() => setShowStatistics(false)} />}
             {showColorCodeList && <div className="print-modal-wrapper"><ColorCodeListView colors={colorCodeData} onClose={() => setShowColorCodeList(false)} /></div>}
         </>
     );
