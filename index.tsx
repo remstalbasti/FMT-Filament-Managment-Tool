@@ -1,4 +1,3 @@
-
 import './index.css';
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -1578,19 +1577,30 @@ const App: React.FC = () => {
 
     const handleGlobalScan = (scannedText: string) => {
         setIsScanning(false);
-        if (scannedText.startsWith('FMT_SPOOL::')) {
-            const id = scannedText.replace('FMT_SPOOL::', '');
-            if (filaments.some(f => f.id === id)) {
-                handleViewDetail(id);
-            } else alert("Spule nicht gefunden.");
-        } else if (scannedText.startsWith('FMT_LOCATION::')) {
-            const path = scannedText.replace('FMT_LOCATION::', '');
-            if (allLocationPaths.includes(path) || path === "") {
-                setLocationFilter(path);
+        const parts = scannedText.split('::');
+        if (parts.length < 2) {
+            alert(`Unbekanntes QR-Code Format: ${scannedText}`);
+            return;
+        }
+
+        const type = parts[0];
+        const data = parts.slice(1).join('::'); // Rejoin in case data contains '::'
+
+        if (type === 'FMT_SPOOL') {
+            if (filaments.some(f => f.id === data)) {
+                handleViewDetail(data);
+            } else {
+                alert("Spule nicht gefunden.");
+            }
+        } else if (type === 'FMT_LOCATION') {
+            if (allLocationPaths.includes(data) || data === "") {
+                setLocationFilter(data);
                 handleGoToOverview();
-            } else alert("Lagerort nicht gefunden.");
+            } else {
+                alert("Lagerort nicht gefunden.");
+            }
         } else {
-             alert(`Unbekanntes QR-Code Format: ${scannedText}`);
+            alert(`Unbekanntes QR-Code Format: ${scannedText}`);
         }
     };
     
@@ -1645,7 +1655,7 @@ const App: React.FC = () => {
         <>
             <main>
                 <header>
-                    <h1>FMT <span className="header-subtitle">Filament Management Tool</span></h1>
+                    <h1>FMT <span className="header-subtitle">Filament Management Tool by <a href="https://www.myopenbusiness.de" target="_blank" rel="noopener noreferrer">myOpenBusiness</a></span></h1>
                     <div className="header-actions">
                         <button className="button button-icon" onClick={() => setShowColorCodeList(true)} title="Farb-Code-Liste anzeigen">
                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.34 0 .67-.02 1-.05M7.32 18.7c.84-.58 1.58-1.25 2.2-2M15 2.46A8.92 8.92 0 0 1 21.54 9c.74 2.5.21 5.25-1.54 7.25-.87 1-1.87 1.8-3 2.45M18.7 7.32c-.58-.84-1.25-1.58-2-2.2M9 21.54A8.92 8.92 0 0 1 2.46 15c-2.5-.74-5.25-.21-7.25 1.54-1 .87-1.8 1.87-2.45 3"/></svg>
