@@ -1655,7 +1655,7 @@ const App: React.FC = () => {
         <>
             <main>
                 <header>
-                    <h1>FMT <span className="header-subtitle">Filament Management Tool by <a href="https://www.myopenbusiness.de" target="_blank" rel="noopener noreferrer">myOpenBusiness</a></span></h1>
+                    <h1>FMT <span className="header-subtitle">Filament Management Tool by </span><a href="https://www.myopenbusiness.de" target="_blank" rel="noopener noreferrer">myOpenBusiness</a></h1>
                     <div className="header-actions">
                         <button className="button button-icon" onClick={() => setShowColorCodeList(true)} title="Farb-Code-Liste anzeigen">
                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c.34 0 .67-.02 1-.05M7.32 18.7c.84-.58 1.58-1.25 2.2-2M15 2.46A8.92 8.92 0 0 1 21.54 9c.74 2.5.21 5.25-1.54 7.25-.87 1-1.87 1.8-3 2.45M18.7 7.32c-.58-.84-1.25-1.58-2-2.2M9 21.54A8.92 8.92 0 0 1 2.46 15c-2.5-.74-5.25-.21-7.25 1.54-1 .87-1.8 1.87-2.45 3"/></svg>
